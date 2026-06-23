@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Tokens{% endblock %}
+{% block page_title %}Activation Tokens{% endblock %}
+
+{% block content %}
+{% if success %}<div class="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">{{ success }}</div>{% endif %}
+{% if error %}<div class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{{ error }}</div>{% endif %}
+
+<div x-data="{ open: false }">
+
+  <div class="flex items-center justify-between mb-4">
+    <p class="text-sm text-gray-500">{{ tokens|length }} token(s)</p>
+    <button @click="open = true"
+            class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+      </svg>
+      Generate Token
+    </button>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-gray-50 border-b border-gray-200">
+          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Customer</th>
+          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Project</th>
+          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">License #</th>
+          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Status</th>
+          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Expires</th>
+          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Created</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for t in tokens %}
+        <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/admin/tokens/{{ t.id }}'">
+          <td class="px-5 py-3 font-medium text-gray-900">{{ t.customer.name }}</td>
+          <td class="px-5 py-3 text-gray-500 text-xs">{{ t.project.name }}</td>
+          <td class="px-5 py-3 font-mono text-xs text-gray-600">{{ t.license_number }}</td>
+          <td class="px-5 py-3">
+            {% if t.status == 'pending' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
+            {% elif t.status == 'used' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Used</span>
+            {% elif t.status == 'expired' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Expired</span>
+            {% else %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Revoked</span>
+            {% endif %}
+          </td>
+          <td class="px-5 py-3 text-gray-400 text-xs">
+            {{ t.expires_at.strftime('%Y-%m-%d') if t.expires_at else 'Never' }}
+          </td>
+          <td class="px-5 py-3 text-gray-400 text-xs">{{ t.created_at.strftime('%Y-%m-%d') }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="px-5 py-10 text-center text-sm text-gray-400">No tokens generated yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Generate Token Modal -->
+  <div x-show="open" x-cloak
+       class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+       @keydown.escape.window="open = false">
+    <div @click.outside="open = false" class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h2 class="font-semibold text-gray-900">Generate Activation Token</h2>
+        <button @click="open = false" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <form method="POST" action="/admin/tokens/create" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Project <span class="text-red-500">*</span></label>
+          <select name="project_id" required
+                  class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+            <option value="">Select project…</option>
+            {% for p in projects %}
+            <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Customer <span class="text-red-500">*</span></label>
+          <select name="customer_id" required
+                  class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+            <option value="">Select customer…</option>
+            {% for c in customers %}
+            <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">License Number <span class="text-red-500">*</span></label>
+          <input type="text" name="license_number" required placeholder="e.g. GL-2024-001"
+                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">License Type</label>
+          <select name="license_type"
+                  class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+            <option value="lifetime">Lifetime</option>
+            <option value="annual">Annual</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Link Expires (days)</label>
+          <input type="number" name="expires_days" placeholder="Leave blank = never expires" min="1"
+                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <p class="text-xs text-gray-400 mt-1">This is when the activation link expires, not the license itself.</p>
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="button" @click="open = false"
+                  class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            Cancel
+          </button>
+          <button type="submit"
+                  class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors">
+            Generate Token
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

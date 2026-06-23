@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Customers{% endblock %}
+{% block page_title %}Customers{% endblock %}
+
+{% block content %}
+{% if success %}<div class="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">{{ success }}</div>{% endif %}
+{% if error %}<div class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{{ error }}</div>{% endif %}
+
+<div x-data="{ open: false }">
+
+  <div class="flex items-center justify-between mb-4">
+    <p class="text-sm text-gray-500">{{ customers|length }} customer(s)</p>
+    <button @click="open = true"
+            class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+      </svg>
+      Add Customer
+    </button>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-gray-50 border-b border-gray-200">
+          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Name</th>
+          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Email</th>
+          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Phone</th>
+          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Notes</th>
+          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Added</th>
+          <th class="px-5 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for c in customers %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-5 py-3 font-medium text-gray-900">{{ c.name }}</td>
+          <td class="px-5 py-3 text-gray-500">{{ c.email or '—' }}</td>
+          <td class="px-5 py-3 text-gray-500">{{ c.phone or '—' }}</td>
+          <td class="px-5 py-3 text-gray-400 text-xs max-w-[160px] truncate">{{ c.notes or '—' }}</td>
+          <td class="px-5 py-3 text-gray-400 text-xs">{{ c.created_at.strftime('%Y-%m-%d') }}</td>
+          <td class="px-5 py-3 text-right">
+            <form method="POST" action="/admin/customers/{{ c.id }}/delete"
+                  x-data
+                  @submit.prevent="if(confirm('Delete this customer?')) $el.submit()">
+              <button type="submit" class="text-xs text-red-500 hover:text-red-700">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="px-5 py-10 text-center text-sm text-gray-400">No customers yet. Add your first customer.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Add Customer Modal -->
+  <div x-show="open" x-cloak
+       class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+       @keydown.escape.window="open = false">
+    <div @click.outside="open = false" class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h2 class="font-semibold text-gray-900">Add Customer</h2>
+        <button @click="open = false" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <form method="POST" action="/admin/customers/create" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Full Name <span class="text-red-500">*</span></label>
+          <input type="text" name="name" required autofocus
+                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Email</label>
+          <input type="email" name="email"
+                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+          <input type="text" name="phone"
+                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Notes</label>
+          <textarea name="notes" rows="2"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="button" @click="open = false"
+                  class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            Cancel
+          </button>
+          <button type="submit"
+                  class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors">
+            Add Customer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

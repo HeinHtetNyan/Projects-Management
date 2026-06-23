@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Token — {{ token.license_number }}{% endblock %}
+{% block page_title %}Activation Token{% endblock %}
+
+{% block content %}
+{% if success %}<div class="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">{{ success }}</div>{% endif %}
+
+<div x-data="{ copiedUrl: false, copiedToken: false }">
+
+  <div class="flex items-center gap-2 mb-6">
+    <a href="/admin/tokens" class="text-sm text-indigo-600 hover:underline">← Tokens</a>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- Left: Token info -->
+    <div class="space-y-4">
+
+      <!-- Status + basics -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div class="flex items-start justify-between mb-4">
+          <h2 class="text-sm font-semibold text-gray-700">Token Details</h2>
+          {% if token.status == 'pending' %}
+          <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">Pending</span>
+          {% elif token.status == 'used' %}
+          <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">Used</span>
+          {% elif token.status == 'expired' %}
+          <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Expired</span>
+          {% else %}
+          <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Revoked</span>
+          {% endif %}
+        </div>
+        <dl class="space-y-3 text-sm">
+          <div class="flex justify-between">
+            <dt class="text-gray-400">Customer</dt>
+            <dd class="font-medium text-gray-900">{{ token.customer.name }}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-gray-400">Project</dt>
+            <dd class="font-medium text-gray-700">{{ token.project.name }}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-gray-400">License Number</dt>
+            <dd class="font-mono text-gray-700">{{ token.license_number }}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-gray-400">License Type</dt>
+            <dd class="text-gray-700 capitalize">{{ token.license_type }}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-gray-400">Created</dt>
+            <dd class="text-gray-500">{{ token.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-gray-400">Expires</dt>
+            <dd class="text-gray-500">{{ token.expires_at.strftime('%Y-%m-%d %H:%M UTC') if token.expires_at else 'Never' }}</dd>
+          </div>
+          {% if token.used_at %}
+          <div class="flex justify-between">
+            <dt class="text-gray-400">Activated</dt>
+            <dd class="text-gray-500">{{ token.used_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd>
+          </div>
+          {% endif %}
+        </dl>
+      </div>
+
+      <!-- Revoke (only if pending) -->
+      {% if token.status == 'pending' %}
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Actions</h2>
+        <form method="POST" action="/admin/tokens/{{ token.id }}/revoke"
+              x-data
+              @submit.prevent="if(confirm('Revoke this token? The customer will not be able to use this activation link anymore.')) $el.submit()">
+          <button type="submit"
+                  class="w-full border border-red-200 hover:border-red-400 text-red-600 hover:text-red-800 px-3 py-2 rounded-lg text-sm transition-colors">
+            Revoke Token
+          </button>
+        </form>
+      </div>
+      {% endif %}
+
+    </div>
+
+    <!-- Right: Activation link (the important part!) -->
+    <div class="space-y-4">
+
+      {% if token.status == 'pending' %}
+      <!-- Big activation URL card -->
+      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-5">
+        <div class="flex items-center gap-2 mb-3">
+          <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/>
+          </svg>
+          <h2 class="text-sm font-semibold text-indigo-900">Activation Link — Send this to the customer</h2>
+        </div>
+        <div class="bg-white border border-indigo-200 rounded-lg p-3 font-mono text-xs text-indigo-800 break-all mb-3 select-all">
+          {{ activation_url }}
+        </div>
+        <button
+          @click="navigator.clipboard.writeText('{{ activation_url }}'); copiedUrl = true; setTimeout(() => copiedUrl = false, 2500)"
+          class="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors">
+          <svg x-show="!copiedUrl" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184"/>
+          </svg>
+          <svg x-show="copiedUrl" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+          </svg>
+          <span x-text="copiedUrl ? 'Copied!' : 'Copy Activation Link'"></span>
+        </button>
+        <p class="text-xs text-indigo-600 mt-2 text-center">Customer clicks this link → app opens and activates automatically.</p>
+      </div>
+      {% endif %}
+
+      <!-- Raw token value -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold text-gray-700">Raw Token</h2>
+          <button
+            @click="navigator.clipboard.writeText('{{ token.token }}'); copiedToken = true; setTimeout(() => copiedToken = false, 2000)"
+            class="text-xs text-indigo-600 flex items-center gap-1">
+            <span x-text="copiedToken ? '✓ Copied' : 'Copy'"></span>
+          </button>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 font-mono text-xs text-gray-600 break-all select-all">
+          {{ token.token }}
+        </div>
+      </div>
+
+      <!-- Linked license (if used) -->
+      {% if token.license %}
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Activated License</h2>
+        <dl class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <dt class="text-gray-400">Computer ID</dt>
+            <dd class="font-mono text-gray-700">{{ token.license.computer_id }}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-gray-400">Activated</dt>
+            <dd class="text-gray-500">{{ token.license.activated_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-gray-400">Status</dt>
+            <dd>
+              {% if token.license.is_active %}
+              <span class="text-green-700 font-medium">Active</span>
+              {% else %}
+              <span class="text-gray-500">Deactivated {{ token.license.deactivated_at.strftime('%Y-%m-%d') if token.license.deactivated_at else '' }}</span>
+              {% endif %}
+            </dd>
+          </div>
+        </dl>
+        {% if token.license.is_active %}
+        <form method="POST" action="/admin/licenses/{{ token.license.id }}/deactivate"
+              x-data class="mt-4"
+              @submit.prevent="if(confirm('Deactivate this license? The customer will lose access until they re-activate.')) $el.submit()">
+          <button type="submit"
+                  class="text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 px-3 py-1.5 rounded-lg transition-colors">
+            Deactivate License
+          </button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Stat cards -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  {% set stats = [
+    ("Projects", total_projects, "indigo", "/admin/projects"),
+    ("Customers", total_customers, "sky", "/admin/customers"),
+    ("Pending Tokens", pending_tokens, "amber", "/admin/tokens"),
+    ("Active Licenses", active_licenses, "emerald", "/admin/licenses"),
+  ] %}
+  {% for label, value, color, href in stats %}
+  <a href="{{ href }}" class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow block">
+    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">{{ label }}</p>
+    <p class="text-3xl font-bold text-gray-900 mt-1">{{ value }}</p>
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Recent tables -->
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+  <!-- Recent Tokens -->
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-gray-800">Recent Tokens</h2>
+      <a href="/admin/tokens" class="text-xs text-indigo-600 hover:underline">View all</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-100">
+            <th class="text-left px-5 py-2.5 text-xs font-medium text-gray-500">Customer</th>
+            <th class="text-left px-5 py-2.5 text-xs font-medium text-gray-500">Project</th>
+            <th class="text-left px-5 py-2.5 text-xs font-medium text-gray-500">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          {% for t in recent_tokens %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-5 py-3 font-medium text-gray-900">{{ t.customer.name }}</td>
+            <td class="px-5 py-3 text-gray-500 text-xs">{{ t.project.name }}</td>
+            <td class="px-5 py-3">
+              {% if t.status == 'pending' %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
+              {% elif t.status == 'used' %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Used</span>
+              {% elif t.status == 'expired' %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Expired</span>
+              {% else %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Revoked</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="px-5 py-6 text-center text-sm text-gray-400">No tokens yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent Licenses -->
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+    <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-gray-800">Recent Activations</h2>
+      <a href="/admin/licenses" class="text-xs text-indigo-600 hover:underline">View all</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-100">
+            <th class="text-left px-5 py-2.5 text-xs font-medium text-gray-500">Customer</th>
+            <th class="text-left px-5 py-2.5 text-xs font-medium text-gray-500">License #</th>
+            <th class="text-left px-5 py-2.5 text-xs font-medium text-gray-500">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          {% for l in recent_licenses %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-5 py-3 font-medium text-gray-900">{{ l.customer.name }}</td>
+            <td class="px-5 py-3 font-mono text-xs text-gray-600">{{ l.license_number }}</td>
+            <td class="px-5 py-3">
+              {% if l.is_active %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Active</span>
+              {% else %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Inactive</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="px-5 py-6 text-center text-sm text-gray-400">No activations yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
