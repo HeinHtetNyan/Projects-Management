@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Domains{% endblock %}
+{% block page_title %}Domain Registry{% endblock %}
+
+{% block header_actions %}
+<button @click="open = true" class="btn-primary">
+  <span class="msym" style="font-size:16px">add</span>
+  Add Domain
+</button>
+{% endblock %}
+
+{% block content %}
+<div x-data="{ open: false, editId: null, editDomain: {} }">
+
+  {% if success %}
+  <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-success">
+    <span class="msym" style="font-size:18px; color:#34d399">check_circle</span>{{ success }}
+    <button @click="show = false" class="ml-auto opacity-60 hover:opacity-100"><span class="msym" style="font-size:16px">close</span></button>
+  </div>
+  {% endif %}
+  {% if error %}
+  <div x-data="{ show: true }" x-show="show"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-error">
+    <span class="msym" style="font-size:18px; color:#ffb4ab">error</span>{{ error }}
+    <button @click="show = false" class="ml-auto opacity-60 hover:opacity-100"><span class="msym" style="font-size:16px">close</span></button>
+  </div>
+  {% endif %}
+
+  <!-- Expiry alert -->
+  {% set expiring = [] %}
+  {% for d in domains %}
+    {% if d.expiry_date and (d.expiry_date - today).days <= 30 and (d.expiry_date - today).days >= 0 %}
+      {% set _ = expiring.append(d) %}
+    {% endif %}
+  {% endfor %}
+  {% if expiring %}
+  <div class="flex items-start gap-3 mb-4 p-4 rounded-lg" style="background:rgba(251,191,36,0.06); border:1px solid rgba(251,191,36,0.2)">
+    <span class="msym" style="font-size:18px; color:#fbbf24; flex-shrink:0">warning</span>
+    <div>
+      <p class="text-sm font-semibold" style="color:#fbbf24">{{ expiring|length }} domain{{ 's' if expiring|length != 1 }} expiring within 30 days</p>
+      <p class="text-xs text-on-surface-variant mt-0.5">
+        {% for d in expiring %}{{ d.domain }}{% if not loop.last %}, {% endif %}{% endfor %}
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b" style="background:#191c1e; border-color:rgba(255,255,255,0.06)">
+            <th class="th">Domain</th>
+            <th class="th">Project</th>
+            <th class="th">Registrar</th>
+            <th class="th">DNS Provider</th>
+            <th class="th">Expiry</th>
+            <th class="th">Status</th>
+            <th class="th"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in domains %}
+          {% set days_left = (d.expiry_date - today).days if d.expiry_date else None %}
+          <tr class="hover:bg-[#272a2c] transition-colors border-b group" style="border-color:rgba(255,255,255,0.04)">
+            <td class="td">
+              <div class="flex items-center gap-2">
+                <span class="msym text-primary" style="font-size:16px">language</span>
+                <span class="font-semibold text-on-surface font-mono text-sm">{{ d.domain }}</span>
+              </div>
+            </td>
+            <td class="td text-sm text-on-surface-variant">{{ d.project.name if d.project else '—' }}</td>
+            <td class="td text-sm text-on-surface-variant">{{ d.registrar or '—' }}</td>
+            <td class="td text-sm text-on-surface-variant">{{ d.dns_provider or '—' }}</td>
+            <td class="td">
+              {% if d.expiry_date %}
+              <span class="text-xs {% if days_left is not none and days_left <= 30 %}font-semibold{% if days_left <= 0 %} text-red-400{% else %} text-amber-400{% endif %}{% else %}text-outline{% endif %}">
+                {{ d.expiry_date.strftime('%b %d, %Y') }}
+                {% if days_left is not none %}
+                  {% if days_left <= 0 %}(expired){% elif days_left <= 30 %}({{ days_left }}d left){% endif %}
+                {% endif %}
+              </span>
+              {% else %}
+              <span class="text-outline text-xs">—</span>
+              {% endif %}
+            </td>
+            <td class="td"><span class="badge badge-{{ d.status }}">{{ d.status }}</span></td>
+            <td class="td text-right">
+              <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button @click="editId = {{ d.id }}; editDomain = {
+                  registrar: '{{ d.registrar|default('', true)|e }}',
+                  dns_provider: '{{ d.dns_provider|default('', true)|e }}',
+                  expiry_date: '{{ d.expiry_date.isoformat() if d.expiry_date else '' }}',
+                  auto_renew: {{ 'true' if d.auto_renew else 'false' }},
+                  notes: '{{ d.notes|default('', true)|e }}',
+                  status: '{{ d.status }}'
+                }" class="btn-ghost" style="padding:4px 8px; font-size:12px">
+                  <span class="msym" style="font-size:14px">edit</span>
+                </button>
+                <form method="POST" action="/admin/domains/{{ d.id }}/delete"
+                      x-data @submit.prevent="if(confirm('Delete {{ d.domain|e }}?')) $el.submit()">
+                  <button type="submit" class="btn-danger" style="padding:4px 8px; font-size:12px; border:none">
+                    <span class="msym" style="font-size:14px">delete</span>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="td text-center text-on-surface-variant text-sm py-12">
+            <div class="flex flex-col items-center gap-2">
+              <span class="msym text-outline" style="font-size:32px">language</span>
+              <p>No domains added yet</p>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add Domain Modal -->
+  <div x-show="open" x-cloak class="modal-backdrop" @keydown.escape.window="open = false">
+    <div @click.outside="open = false" class="modal" style="max-width:520px">
+      <div class="modal-header">
+        <h2 class="text-sm font-semibold text-on-surface">Add Domain</h2>
+        <button @click="open = false" class="btn-ghost" style="padding:4px 8px; border:none"><span class="msym" style="font-size:18px">close</span></button>
+      </div>
+      <form method="POST" action="/admin/domains/create" class="modal-body space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Domain Name</label>
+            <input name="domain" required placeholder="e.g. nexuspos.com" class="input font-mono"/>
+          </div>
+          <div>
+            <label class="label">Project</label>
+            <select name="project_id" class="input">
+              <option value="">— None —</option>
+              {% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Registrar</label>
+            <input name="registrar" placeholder="e.g. Namecheap" class="input"/>
+          </div>
+          <div>
+            <label class="label">DNS Provider</label>
+            <input name="dns_provider" placeholder="e.g. Cloudflare" class="input"/>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Expiry Date</label>
+            <input name="expiry_date" type="date" class="input"/>
+          </div>
+          <div class="flex items-end pb-1.5">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input name="auto_renew" type="checkbox" value="1" class="w-4 h-4 rounded" style="accent-color:#2563eb"/>
+              <span class="text-sm text-on-surface-variant">Auto-renew</span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="label">Notes</label>
+          <textarea name="notes" rows="2" placeholder="Optional notes…" class="input"></textarea>
+        </div>
+        <div class="flex gap-3 pt-1">
+          <button type="button" @click="open = false" class="btn-ghost flex-1">Cancel</button>
+          <button type="submit" class="btn-primary flex-1">Add Domain</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Domain Modal -->
+  <div x-show="editId !== null" x-cloak class="modal-backdrop" @keydown.escape.window="editId = null">
+    <template x-for="id in [editId]" :key="id">
+      <div @click.outside="editId = null" class="modal" style="max-width:480px">
+        <div class="modal-header">
+          <h2 class="text-sm font-semibold text-on-surface">Edit Domain</h2>
+          <button @click="editId = null" class="btn-ghost" style="padding:4px 8px; border:none"><span class="msym" style="font-size:18px">close</span></button>
+        </div>
+        <form :action="'/admin/domains/' + id + '/update'" method="POST" class="modal-body space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label">Registrar</label>
+              <input name="registrar" :value="editDomain.registrar" class="input"/>
+            </div>
+            <div>
+              <label class="label">DNS Provider</label>
+              <input name="dns_provider" :value="editDomain.dns_provider" class="input"/>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label">Expiry Date</label>
+              <input name="expiry_date" type="date" :value="editDomain.expiry_date" class="input"/>
+            </div>
+            <div>
+              <label class="label">Status</label>
+              <select name="status" class="input">
+                <option value="active" :selected="editDomain.status === 'active'">Active</option>
+                <option value="expired" :selected="editDomain.status === 'expired'">Expired</option>
+                <option value="transferred" :selected="editDomain.status === 'transferred'">Transferred</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <input name="auto_renew" type="checkbox" value="1" :checked="editDomain.auto_renew" class="w-4 h-4 rounded" style="accent-color:#2563eb"/>
+            <span class="text-sm text-on-surface-variant">Auto-renew</span>
+          </div>
+          <div>
+            <label class="label">Notes</label>
+            <textarea name="notes" rows="2" x-model="editDomain.notes" class="input"></textarea>
+          </div>
+          <div class="flex gap-3">
+            <button type="button" @click="editId = null" class="btn-ghost flex-1">Cancel</button>
+            <button type="submit" class="btn-primary flex-1">Save</button>
+          </div>
+        </form>
+      </div>
+    </template>
+  </div>
+
+</div>
+{% endblock %}

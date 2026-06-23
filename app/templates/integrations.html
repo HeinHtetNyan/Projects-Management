@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Integrations{% endblock %}
+{% block page_title %}Integrations Registry{% endblock %}
+
+{% block header_actions %}
+<button @click="open = true" class="btn-primary">
+  <span class="msym" style="font-size:16px">add</span>
+  Add Integration
+</button>
+{% endblock %}
+
+{% block content %}
+<div x-data="{ open: false }">
+
+  {% if success %}
+  <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-success">
+    <span class="msym" style="font-size:18px; color:#34d399">check_circle</span>{{ success }}
+    <button @click="show = false" class="ml-auto opacity-60 hover:opacity-100"><span class="msym" style="font-size:16px">close</span></button>
+  </div>
+  {% endif %}
+  {% if error %}
+  <div x-data="{ show: true }" x-show="show"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-error">
+    <span class="msym" style="font-size:18px; color:#ffb4ab">error</span>{{ error }}
+    <button @click="show = false" class="ml-auto opacity-60 hover:opacity-100"><span class="msym" style="font-size:16px">close</span></button>
+  </div>
+  {% endif %}
+
+  {% set service_icon = {
+    'Cloudflare': 'cloud',
+    'GitHub': 'code',
+    'Vercel': 'rocket_launch',
+    'OpenAI': 'smart_toy',
+    'Gemini': 'auto_awesome',
+    'Resend': 'mail',
+    'Mailtrap': 'mail',
+    'Stripe': 'credit_card',
+    'AWS': 'cloud',
+    'Contabo': 'dns'
+  } %}
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for ig in integrations %}
+    <div class="card p-5 relative group">
+      <div class="flex items-start justify-between mb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(37,99,235,0.1)">
+            <span class="msym text-primary" style="font-size:18px">{{ service_icon.get(ig.service, 'extension') }}</span>
+          </div>
+          <div>
+            <p class="font-semibold text-on-surface">{{ ig.service }}</p>
+            {% if ig.account %}<p class="text-xs text-outline">{{ ig.account }}</p>{% endif %}
+          </div>
+        </div>
+        <span class="badge badge-{{ ig.status }}">{{ ig.status }}</span>
+      </div>
+
+      {% if ig.project %}
+      <div class="flex items-center gap-2 mb-2">
+        <span class="msym text-outline" style="font-size:14px">folder_managed</span>
+        <span class="text-xs text-on-surface-variant">{{ ig.project.name }}</span>
+      </div>
+      {% endif %}
+
+      {% if ig.related_secrets %}
+      <div class="mb-2">
+        <p class="text-[10px] font-mono text-outline uppercase mb-1">Related Secrets</p>
+        <div class="flex flex-wrap gap-1">
+          {% for s in ig.related_secrets.split(',') %}
+          <span class="px-2 py-0.5 rounded text-xs font-mono" style="background:#191c1e; color:#b4c5ff">{{ s.strip() }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if ig.notes %}
+      <p class="text-xs text-on-surface-variant mt-2 line-clamp-2">{{ ig.notes }}</p>
+      {% endif %}
+
+      <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+        <form method="POST" action="/admin/integrations/{{ ig.id }}/delete"
+              x-data @submit.prevent="if(confirm('Delete {{ ig.service|e }} integration?')) $el.submit()">
+          <button type="submit" class="btn-danger" style="padding:4px 8px; font-size:12px; border:none">
+            <span class="msym" style="font-size:14px">delete</span>
+          </button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-span-3 py-12 flex flex-col items-center gap-2 text-on-surface-variant text-sm">
+      <span class="msym text-outline" style="font-size:32px">extension</span>
+      <p>No integrations added yet</p>
+      <p class="text-xs">Track external services — Cloudflare, GitHub, Vercel, OpenAI, etc.</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Add Integration Modal -->
+  <div x-show="open" x-cloak class="modal-backdrop" @keydown.escape.window="open = false">
+    <div @click.outside="open = false" class="modal" style="max-width:480px">
+      <div class="modal-header">
+        <h2 class="text-sm font-semibold text-on-surface">Add Integration</h2>
+        <button @click="open = false" class="btn-ghost" style="padding:4px 8px; border:none"><span class="msym" style="font-size:18px">close</span></button>
+      </div>
+      <form method="POST" action="/admin/integrations/create" class="modal-body space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Service</label>
+            <select name="service" required class="input">
+              <option value="">Select…</option>
+              <option>Cloudflare</option>
+              <option>GitHub</option>
+              <option>Vercel</option>
+              <option>OpenAI</option>
+              <option>Gemini</option>
+              <option>Resend</option>
+              <option>Mailtrap</option>
+              <option>Stripe</option>
+              <option>AWS</option>
+              <option>R2</option>
+              <option>Contabo</option>
+              <option>Hetzner</option>
+              <option>DigitalOcean</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Account / Zone</label>
+            <input name="account" placeholder="e.g. kaungthantsin36@gmail.com" class="input"/>
+          </div>
+        </div>
+        <div>
+          <label class="label">Project (optional)</label>
+          <select name="project_id" class="input">
+            <option value="">— Global —</option>
+            {% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="label">Related Secret Names</label>
+          <input name="related_secrets" placeholder="e.g. CLOUDFLARE_API_TOKEN, CF_ZONE_ID" class="input font-mono text-xs"/>
+          <p class="text-[11px] text-outline mt-1">Comma-separated. Links to secret names in the vault.</p>
+        </div>
+        <div>
+          <label class="label">Notes</label>
+          <textarea name="notes" rows="2" placeholder="Optional notes, zone IDs, account info…" class="input"></textarea>
+        </div>
+        <div class="flex gap-3 pt-1">
+          <button type="button" @click="open = false" class="btn-ghost flex-1">Cancel</button>
+          <button type="submit" class="btn-primary flex-1">Add Integration</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

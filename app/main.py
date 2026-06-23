@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
+from sqlalchemy import text
 
 from .config import settings
 from .database import engine, Base, SessionLocal
@@ -15,16 +16,55 @@ app.include_router(activation.router)
 app.include_router(admin.router)
 
 
+def _add_column_if_not_exists(conn, table: str, column: str, col_def: str):
+    result = conn.execute(text(
+        f"SELECT column_name FROM information_schema.columns "
+        f"WHERE table_name=:t AND column_name=:c"
+    ), {"t": table, "c": column})
+    if not result.fetchone():
+        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"))
+
+
 @app.on_event("startup")
 def on_startup():
-    """Create tables and bootstrap the first admin user."""
+    # Create all tables (new tables only — existing ones are untouched)
     Base.metadata.create_all(bind=engine)
+
+    # Safely add new columns to existing tables
+    with engine.begin() as conn:
+        # admin_users
+        _add_column_if_not_exists(conn, "admin_users", "email", "VARCHAR(255)")
+        _add_column_if_not_exists(conn, "admin_users", "role", "VARCHAR(50) NOT NULL DEFAULT 'ADMIN'")
+        _add_column_if_not_exists(conn, "admin_users", "status", "VARCHAR(20) NOT NULL DEFAULT 'active'")
+
+        # projects
+        _add_column_if_not_exists(conn, "projects", "type", "VARCHAR(50)")
+        _add_column_if_not_exists(conn, "projects", "status", "VARCHAR(50) DEFAULT 'Development'")
+        _add_column_if_not_exists(conn, "projects", "version", "VARCHAR(50)")
+        _add_column_if_not_exists(conn, "projects", "repository_url", "VARCHAR(500)")
+        _add_column_if_not_exists(conn, "projects", "owner", "VARCHAR(255)")
+
+        # customers
+        _add_column_if_not_exists(conn, "customers", "company_name", "VARCHAR(255)")
+        _add_column_if_not_exists(conn, "customers", "country", "VARCHAR(100)")
+        _add_column_if_not_exists(conn, "customers", "status", "VARCHAR(20) NOT NULL DEFAULT 'active'")
+
+        # secrets
+        _add_column_if_not_exists(conn, "secrets", "environment", "VARCHAR(50)")
+        _add_column_if_not_exists(conn, "secrets", "description", "TEXT")
+
+        # servers
+        _add_column_if_not_exists(conn, "servers", "purpose", "VARCHAR(255)")
+
+    # Bootstrap first admin user
     db = SessionLocal()
     try:
         if db.query(AdminUser).count() == 0 and settings.ADMIN_PASSWORD not in ("admin", "changeme"):
             db.add(AdminUser(
                 username=settings.ADMIN_USERNAME,
                 password_hash=hash_password(settings.ADMIN_PASSWORD),
+                role="SUPER_OWNER",
+                status="active",
             ))
             db.commit()
     finally:

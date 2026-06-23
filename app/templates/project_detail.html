@@ -3,121 +3,147 @@
 {% block page_title %}{{ project.name }}{% endblock %}
 
 {% block content %}
-{% if success %}<div class="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">{{ success }}</div>{% endif %}
-{% if error %}<div class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{{ error }}</div>{% endif %}
+<div x-data="{ importOpen: false, editOpen: false, copied: false }">
 
-<div x-data="{ importOpen: false, deleteOpen: false, copied: false }">
+  {% if success %}
+  <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-success mb-4">
+    <span class="msym" style="font-size:18px; color:#34d399">check_circle</span>{{ success }}
+    <button @click="show = false" class="ml-auto opacity-60 hover:opacity-100"><span class="msym" style="font-size:16px">close</span></button>
+  </div>
+  {% endif %}
+  {% if error %}
+  <div x-data="{ show: true }" x-show="show"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-error mb-4">
+    <span class="msym" style="font-size:18px; color:#ffb4ab">error</span>{{ error }}
+    <button @click="show = false" class="ml-auto opacity-60 hover:opacity-100"><span class="msym" style="font-size:16px">close</span></button>
+  </div>
+  {% endif %}
 
-  <div class="flex items-center gap-2 mb-6">
-    <a href="/admin/projects" class="text-sm text-indigo-600 hover:underline">← Projects</a>
+  <!-- Breadcrumb -->
+  <div class="flex items-center gap-2 mb-4 text-sm">
+    <a href="/admin/projects" class="text-on-surface-variant hover:text-primary transition-colors">Projects</a>
+    <span class="msym text-outline" style="font-size:16px">chevron_right</span>
+    <span class="text-on-surface font-medium">{{ project.name }}</span>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-    <!-- Left: Details card -->
-    <div class="lg:col-span-1 space-y-4">
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h2 class="text-sm font-semibold text-gray-700 mb-4">Project Details</h2>
-        <dl class="space-y-3 text-sm">
+    <!-- Left column -->
+    <div class="space-y-4">
+
+      <!-- Details card -->
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="label" style="margin:0">Project Details</h2>
+          <button @click="editOpen = true" class="btn-ghost" style="padding:4px 10px; font-size:12px">
+            <span class="msym" style="font-size:14px">edit</span> Edit
+          </button>
+        </div>
+        <dl class="space-y-3">
           <div>
-            <dt class="text-xs text-gray-400">Name</dt>
-            <dd class="font-medium text-gray-900">{{ project.name }}</dd>
+            <dt class="text-[11px] font-mono text-outline uppercase mb-0.5">Name</dt>
+            <dd class="font-semibold text-on-surface">{{ project.name }}</dd>
           </div>
           <div>
-            <dt class="text-xs text-gray-400">Slug</dt>
-            <dd class="font-mono text-gray-700">{{ project.slug }}</dd>
+            <dt class="text-[11px] font-mono text-outline uppercase mb-0.5">Slug</dt>
+            <dd class="font-mono text-xs text-on-surface-variant">{{ project.slug }}</dd>
           </div>
           <div>
-            <dt class="text-xs text-gray-400">Deep Link Scheme</dt>
-            <dd class="font-mono text-indigo-700">{{ project.deep_link_scheme }}://</dd>
+            <dt class="text-[11px] font-mono text-outline uppercase mb-0.5">Deep Link Scheme</dt>
+            <dd class="font-mono text-sm text-primary font-medium">{{ project.deep_link_scheme }}://</dd>
           </div>
-          {% if project.description %}
+          {% if project.type %}
           <div>
-            <dt class="text-xs text-gray-400">Description</dt>
-            <dd class="text-gray-600">{{ project.description }}</dd>
+            <dt class="text-[11px] font-mono text-outline uppercase mb-0.5">Type</dt>
+            <dd><span class="badge badge-{{ project.type|lower|replace(' ', '-') }}">{{ project.type }}</span></dd>
           </div>
           {% endif %}
           <div>
-            <dt class="text-xs text-gray-400">Created</dt>
-            <dd class="text-gray-500">{{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+            <dt class="text-[11px] font-mono text-outline uppercase mb-0.5">Status</dt>
+            <dd><span class="badge badge-{{ (project.status or 'development')|lower }}">{{ project.status or 'Development' }}</span></dd>
+          </div>
+          {% if project.version %}
+          <div>
+            <dt class="text-[11px] font-mono text-outline uppercase mb-0.5">Version</dt>
+            <dd class="font-mono text-xs text-on-surface-variant">{{ project.version }}</dd>
+          </div>
+          {% endif %}
+          {% if project.description %}
+          <div>
+            <dt class="text-[11px] font-mono text-outline uppercase mb-0.5">Description</dt>
+            <dd class="text-sm text-on-surface-variant">{{ project.description }}</dd>
+          </div>
+          {% endif %}
+          <div>
+            <dt class="text-[11px] font-mono text-outline uppercase mb-0.5">Created</dt>
+            <dd class="text-xs text-outline">{{ project.created_at.strftime('%b %d, %Y · %H:%M UTC') }}</dd>
           </div>
         </dl>
       </div>
 
-      <!-- Public Key card -->
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <!-- Public key card -->
+      <div class="card p-5">
         <div class="flex items-center justify-between mb-3">
-          <h2 class="text-sm font-semibold text-gray-700">Public Key</h2>
-          <button
-            @click="navigator.clipboard.writeText('{{ project.public_key_b64 }}'); copied = true; setTimeout(() => copied = false, 2000)"
-            class="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
-            <svg x-show="!copied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184"/>
-            </svg>
-            <span x-text="copied ? '✓ Copied' : 'Copy'"></span>
+          <h2 class="label" style="margin:0">Public Key</h2>
+          <button @click="navigator.clipboard.writeText('{{ project.public_key_b64 }}'); copied = true; setTimeout(() => copied = false, 2000)"
+                  class="btn-ghost" style="padding:4px 10px; font-size:12px">
+            <span class="msym" style="font-size:14px" x-text="copied ? 'done' : 'content_copy'">content_copy</span>
+            <span x-text="copied ? 'Copied' : 'Copy'">Copy</span>
           </button>
         </div>
-        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 font-mono text-xs text-gray-700 break-all select-all">
-          {{ project.public_key_b64 }}
-        </div>
-        <p class="text-xs text-gray-400 mt-2">Hardcode this into your desktop app's Rust source code.</p>
+        <div class="font-mono text-[11px] text-on-surface-variant break-all leading-relaxed select-all p-3 rounded-lg"
+             style="background:#191c1e; border:1px solid rgba(255,255,255,0.05)">{{ project.public_key_b64 }}</div>
+        <p class="text-[11px] text-outline mt-2">Hardcode this into your desktop app source.</p>
       </div>
 
       <!-- Key management -->
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-3">
-        <h2 class="text-sm font-semibold text-gray-700">Key Management</h2>
-        <button @click="importOpen = true"
-                class="w-full text-sm border border-gray-300 hover:border-indigo-400 hover:text-indigo-700 text-gray-700 px-3 py-2 rounded-lg transition-colors text-left">
+      <div class="card p-5 space-y-2">
+        <h2 class="label">Key Management</h2>
+        <button @click="importOpen = true" class="btn-ghost w-full justify-start">
+          <span class="msym" style="font-size:16px">upload</span>
           Import / Replace Key Pair
         </button>
         <form method="POST" action="/admin/projects/{{ project.id }}/delete"
-              x-data
-              @submit.prevent="if(confirm('Delete this project and all its tokens? This cannot be undone.')) $el.submit()">
-          <button type="submit"
-                  class="w-full text-sm border border-red-200 hover:border-red-400 text-red-600 hover:text-red-800 px-3 py-2 rounded-lg transition-colors text-left">
+              x-data @submit.prevent="if(confirm('Delete {{ project.name|e }} and all its tokens? This cannot be undone.')) $el.submit()">
+          <button type="submit" class="btn-danger w-full justify-start">
+            <span class="msym" style="font-size:16px">delete</span>
             Delete Project
           </button>
         </form>
       </div>
     </div>
 
-    <!-- Right: Token list -->
+    <!-- Right column: tokens -->
     <div class="lg:col-span-2">
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-gray-800">Tokens for this project</h2>
-          <a href="/admin/tokens" class="text-xs text-indigo-600 hover:underline">Generate token →</a>
+      <div class="card overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3 border-b" style="border-color:rgba(255,255,255,0.06)">
+          <h2 class="text-sm font-semibold text-on-surface">Tokens ({{ tokens|length }})</h2>
+          <a href="/admin/tokens" class="text-xs text-primary hover:underline">Generate token →</a>
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full text-sm">
+          <table class="w-full">
             <thead>
-              <tr class="bg-gray-50 border-b border-gray-100">
-                <th class="text-left px-5 py-2.5 text-xs font-medium text-gray-500">Customer</th>
-                <th class="text-left px-5 py-2.5 text-xs font-medium text-gray-500">License #</th>
-                <th class="text-left px-5 py-2.5 text-xs font-medium text-gray-500">Status</th>
-                <th class="text-left px-5 py-2.5 text-xs font-medium text-gray-500">Created</th>
+              <tr class="border-b" style="background:#191c1e; border-color:rgba(255,255,255,0.06)">
+                <th class="th">Customer</th>
+                <th class="th">License #</th>
+                <th class="th">Status</th>
+                <th class="th">Created</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
               {% for t in tokens %}
-              <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/admin/tokens/{{ t.id }}'">
-                <td class="px-5 py-3 font-medium text-gray-900">{{ t.customer.name }}</td>
-                <td class="px-5 py-3 font-mono text-xs text-gray-600">{{ t.license_number }}</td>
-                <td class="px-5 py-3">
-                  {% if t.status == 'pending' %}
-                  <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
-                  {% elif t.status == 'used' %}
-                  <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Used</span>
-                  {% elif t.status == 'expired' %}
-                  <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Expired</span>
-                  {% else %}
-                  <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Revoked</span>
-                  {% endif %}
-                </td>
-                <td class="px-5 py-3 text-gray-400 text-xs">{{ t.created_at.strftime('%Y-%m-%d') }}</td>
+              <tr class="hover:bg-[#272a2c] transition-colors border-b cursor-pointer" style="border-color:rgba(255,255,255,0.04)"
+                  onclick="window.location='/admin/tokens/{{ t.id }}'">
+                <td class="td font-medium text-on-surface">{{ t.customer.name }}</td>
+                <td class="td font-mono text-xs text-on-surface-variant">{{ t.license_number }}</td>
+                <td class="td"><span class="badge badge-{{ t.status }}">{{ t.status }}</span></td>
+                <td class="td text-xs text-outline whitespace-nowrap">{{ t.created_at.strftime('%b %d, %Y') }}</td>
               </tr>
               {% else %}
-              <tr><td colspan="4" class="px-5 py-8 text-center text-sm text-gray-400">No tokens for this project yet</td></tr>
+              <tr><td colspan="4" class="td text-center text-on-surface-variant text-sm py-8">No tokens for this project yet.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -127,35 +153,73 @@
   </div>
 
   <!-- Import Key Modal -->
-  <div x-show="importOpen" x-cloak
-       class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-       @keydown.escape.window="importOpen = false">
-    <div @click.outside="importOpen = false" class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-        <h2 class="font-semibold text-gray-900">Import / Replace Key Pair</h2>
-        <button @click="importOpen = false" class="text-gray-400 hover:text-gray-600">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
-          </svg>
-        </button>
+  <div x-show="importOpen" x-cloak class="modal-backdrop" @keydown.escape.window="importOpen = false">
+    <div @click.outside="importOpen = false" class="modal">
+      <div class="modal-header">
+        <h2 class="text-sm font-semibold text-on-surface">Import / Replace Key Pair</h2>
+        <button @click="importOpen = false" class="btn-ghost" style="padding:4px 8px; border:none"><span class="msym" style="font-size:18px">close</span></button>
       </div>
-      <form method="POST" action="/admin/projects/{{ project.id }}/reimport-key" class="p-6 space-y-4">
+      <form method="POST" action="/admin/projects/{{ project.id }}/reimport-key" class="modal-body space-y-4">
         <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Raw Base64 Private Key</label>
-          <textarea name="private_key" required rows="3"
-                    placeholder="Paste the base64-encoded Ed25519 private key here..."
-                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
-          <p class="text-xs text-red-500 mt-1">Warning: This replaces the current key. The public key will be derived and updated automatically.</p>
+          <label class="label">Raw Base64 Private Key</label>
+          <textarea name="private_key" required rows="3" placeholder="Paste the base64-encoded Ed25519 private key…" class="input font-mono text-xs"></textarea>
+          <div class="flex items-start gap-2 mt-2 p-3 rounded-lg" style="background:rgba(147,0,10,0.1); border:1px solid rgba(255,180,171,0.15)">
+            <span class="msym" style="font-size:16px; color:#ffb4ab; flex-shrink:0; margin-top:1px">warning</span>
+            <p class="text-xs" style="color:#ffb4ab">This replaces the current key pair. Existing licenses signed with the old key will stop validating.</p>
+          </div>
         </div>
         <div class="flex gap-3">
-          <button type="button" @click="importOpen = false"
-                  class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-            Cancel
-          </button>
-          <button type="submit"
-                  class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors">
-            Import Key
-          </button>
+          <button type="button" @click="importOpen = false" class="btn-ghost flex-1">Cancel</button>
+          <button type="submit" class="btn-primary flex-1">Import Key</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div x-show="editOpen" x-cloak class="modal-backdrop" @keydown.escape.window="editOpen = false">
+    <div @click.outside="editOpen = false" class="modal">
+      <div class="modal-header">
+        <h2 class="text-sm font-semibold text-on-surface">Edit Project</h2>
+        <button @click="editOpen = false" class="btn-ghost" style="padding:4px 8px; border:none"><span class="msym" style="font-size:18px">close</span></button>
+      </div>
+      <form method="POST" action="/admin/projects/{{ project.id }}/update" class="modal-body space-y-3">
+        <div>
+          <label class="label">Project Name</label>
+          <input name="name" value="{{ project.name }}" required class="input"/>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="label">Type</label>
+            <select name="type" class="input">
+              <option value="">—</option>
+              <option value="SaaS" {% if project.type == 'SaaS' %}selected{% endif %}>SaaS</option>
+              <option value="Desktop" {% if project.type == 'Desktop' %}selected{% endif %}>Desktop</option>
+              <option value="Mobile" {% if project.type == 'Mobile' %}selected{% endif %}>Mobile</option>
+              <option value="Internal Tool" {% if project.type == 'Internal Tool' %}selected{% endif %}>Internal Tool</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Status</label>
+            <select name="status" class="input">
+              <option value="Development" {% if (project.status or '') == 'Development' %}selected{% endif %}>Development</option>
+              <option value="Beta" {% if project.status == 'Beta' %}selected{% endif %}>Beta</option>
+              <option value="Production" {% if project.status == 'Production' %}selected{% endif %}>Production</option>
+              <option value="Deprecated" {% if project.status == 'Deprecated' %}selected{% endif %}>Deprecated</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Version</label>
+            <input name="version" value="{{ project.version or '' }}" placeholder="1.0.0" class="input"/>
+          </div>
+        </div>
+        <div>
+          <label class="label">Description</label>
+          <textarea name="description" rows="2" class="input">{{ project.description or '' }}</textarea>
+        </div>
+        <div class="flex gap-3">
+          <button type="button" @click="editOpen = false" class="btn-ghost flex-1">Cancel</button>
+          <button type="submit" class="btn-primary flex-1">Save Changes</button>
         </div>
       </form>
     </div>

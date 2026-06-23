@@ -1,104 +1,218 @@
 {% extends "base.html" %}
 {% block title %}Customers{% endblock %}
-{% block page_title %}Customers{% endblock %}
+{% block page_title %}Customer Directory{% endblock %}
+
+{% block header_actions %}
+<button @click="open = true" class="btn-primary">
+  <span class="msym" style="font-size:16px">add</span>
+  New Customer
+</button>
+{% endblock %}
 
 {% block content %}
-{% if success %}<div class="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">{{ success }}</div>{% endif %}
-{% if error %}<div class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{{ error }}</div>{% endif %}
+<div x-data="{ open: false, editId: null, editC: {} }">
 
-<div x-data="{ open: false }">
+  {% if success %}
+  <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-success">
+    <span class="msym" style="font-size:18px; color:#34d399">check_circle</span>
+    {{ success }}
+    <button @click="show = false" class="ml-auto opacity-60 hover:opacity-100"><span class="msym" style="font-size:16px">close</span></button>
+  </div>
+  {% endif %}
+  {% if error %}
+  <div x-data="{ show: true }" x-show="show"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-error">
+    <span class="msym" style="font-size:18px; color:#ffb4ab">error</span>
+    {{ error }}
+    <button @click="show = false" class="ml-auto opacity-60 hover:opacity-100"><span class="msym" style="font-size:16px">close</span></button>
+  </div>
+  {% endif %}
 
   <div class="flex items-center justify-between mb-4">
-    <p class="text-sm text-gray-500">{{ customers|length }} customer(s)</p>
-    <button @click="open = true"
-            class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-      </svg>
+    <p class="text-sm text-on-surface-variant">{{ customers|length }} customer{{ 's' if customers|length != 1 }}</p>
+  </div>
+
+  {% if customers %}
+  <div class="card overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b" style="background:#191c1e; border-color:rgba(255,255,255,0.06)">
+            <th class="th">Contact</th>
+            <th class="th">Company</th>
+            <th class="th">Email</th>
+            <th class="th">Country</th>
+            <th class="th">Status</th>
+            <th class="th">Licenses</th>
+            <th class="th">Created</th>
+            <th class="th"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in customers %}
+          <tr class="hover:bg-[#272a2c] transition-colors border-b group" style="border-color:rgba(255,255,255,0.04)">
+            <td class="td">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
+                     style="background:rgba(37,99,235,0.12); color:#b4c5ff">{{ c.name[0]|upper }}</div>
+                <div>
+                  <p class="font-semibold text-on-surface">{{ c.name }}</p>
+                  {% if c.phone %}<p class="text-xs text-outline">{{ c.phone }}</p>{% endif %}
+                </div>
+              </div>
+            </td>
+            <td class="td text-on-surface-variant text-sm">{{ c.company_name or '—' }}</td>
+            <td class="td font-mono text-xs text-on-surface-variant">{{ c.email or '—' }}</td>
+            <td class="td text-sm text-on-surface-variant">{{ c.country or '—' }}</td>
+            <td class="td">
+              <span class="badge badge-{{ (c.status or 'active')|lower }}">{{ c.status or 'active' }}</span>
+            </td>
+            <td class="td font-mono text-sm text-on-surface">{{ c.tokens|selectattr('license', 'defined')|list|length }}</td>
+            <td class="td text-xs text-outline whitespace-nowrap">{{ c.created_at.strftime('%b %d, %Y') }}</td>
+            <td class="td text-right">
+              <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button @click="editId = {{ c.id }}; editC = {
+                  name: '{{ c.name|e }}',
+                  company_name: '{{ c.company_name|default('', true)|e }}',
+                  email: '{{ c.email|default('', true)|e }}',
+                  phone: '{{ c.phone|default('', true)|e }}',
+                  country: '{{ c.country|default('', true)|e }}',
+                  notes: '{{ c.notes|default('', true)|e }}',
+                  status: '{{ c.status or 'active' }}'
+                }" class="btn-ghost" style="padding:4px 8px; font-size:12px">
+                  <span class="msym" style="font-size:14px">edit</span>
+                </button>
+                <form method="POST" action="/admin/customers/{{ c.id }}/delete"
+                      x-data @submit.prevent="if(confirm('Delete {{ c.name|e }}?')) $el.submit()">
+                  <button type="submit" class="btn-danger" style="padding:4px 8px; font-size:12px; border:none">
+                    <span class="msym" style="font-size:14px">delete</span>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="card flex flex-col items-center justify-center py-16 text-center">
+    <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(190,198,224,0.1)">
+      <span class="msym" style="font-size:28px; color:#bec6e0">group</span>
+    </div>
+    <p class="font-semibold text-on-surface mb-1">No customers yet</p>
+    <p class="text-sm text-on-surface-variant mb-5">Add your first customer to assign licenses.</p>
+    <button @click="open = true" class="btn-primary">
+      <span class="msym" style="font-size:16px">add</span>
       Add Customer
     </button>
   </div>
+  {% endif %}
 
-  <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="bg-gray-50 border-b border-gray-200">
-          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Name</th>
-          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Email</th>
-          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Phone</th>
-          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Notes</th>
-          <th class="text-left px-5 py-3 text-xs font-medium text-gray-500">Added</th>
-          <th class="px-5 py-3"></th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-100">
-        {% for c in customers %}
-        <tr class="hover:bg-gray-50">
-          <td class="px-5 py-3 font-medium text-gray-900">{{ c.name }}</td>
-          <td class="px-5 py-3 text-gray-500">{{ c.email or '—' }}</td>
-          <td class="px-5 py-3 text-gray-500">{{ c.phone or '—' }}</td>
-          <td class="px-5 py-3 text-gray-400 text-xs max-w-[160px] truncate">{{ c.notes or '—' }}</td>
-          <td class="px-5 py-3 text-gray-400 text-xs">{{ c.created_at.strftime('%Y-%m-%d') }}</td>
-          <td class="px-5 py-3 text-right">
-            <form method="POST" action="/admin/customers/{{ c.id }}/delete"
-                  x-data
-                  @submit.prevent="if(confirm('Delete this customer?')) $el.submit()">
-              <button type="submit" class="text-xs text-red-500 hover:text-red-700">Delete</button>
-            </form>
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="6" class="px-5 py-10 text-center text-sm text-gray-400">No customers yet. Add your first customer.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <!-- Edit Modal -->
+  <div x-show="editId !== null" x-cloak class="modal-backdrop" @keydown.escape.window="editId = null">
+    <template x-for="id in [editId]" :key="id">
+      <div @click.outside="editId = null" class="modal">
+        <div class="modal-header">
+          <h2 class="text-sm font-semibold text-on-surface">Edit Customer</h2>
+          <button @click="editId = null" class="btn-ghost" style="padding:4px 8px; border:none">
+            <span class="msym" style="font-size:18px">close</span>
+          </button>
+        </div>
+        <form :action="'/admin/customers/' + id + '/update'" method="POST" class="modal-body space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label">Contact Name</label>
+              <input name="name" required :value="editC.name" class="input"/>
+            </div>
+            <div>
+              <label class="label">Company Name</label>
+              <input name="company_name" :value="editC.company_name" class="input"/>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label">Email</label>
+              <input name="email" type="email" :value="editC.email" class="input"/>
+            </div>
+            <div>
+              <label class="label">Phone</label>
+              <input name="phone" :value="editC.phone" class="input"/>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label">Country</label>
+              <input name="country" :value="editC.country" class="input"/>
+            </div>
+            <div>
+              <label class="label">Status</label>
+              <select name="status" class="input">
+                <option value="active"    :selected="editC.status === 'active'">Active</option>
+                <option value="inactive"  :selected="editC.status === 'inactive'">Inactive</option>
+                <option value="suspended" :selected="editC.status === 'suspended'">Suspended</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="label">Notes</label>
+            <textarea name="notes" rows="2" x-model="editC.notes" class="input"></textarea>
+          </div>
+          <div class="flex gap-3 pt-1">
+            <button type="button" @click="editId = null" class="btn-ghost flex-1">Cancel</button>
+            <button type="submit" class="btn-primary flex-1">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </template>
   </div>
 
-  <!-- Add Customer Modal -->
-  <div x-show="open" x-cloak
-       class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-       @keydown.escape.window="open = false">
-    <div @click.outside="open = false" class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-        <h2 class="font-semibold text-gray-900">Add Customer</h2>
-        <button @click="open = false" class="text-gray-400 hover:text-gray-600">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
-          </svg>
+  <!-- Create Modal -->
+  <div x-show="open" x-cloak class="modal-backdrop" @keydown.escape.window="open = false">
+    <div @click.outside="open = false" class="modal">
+      <div class="modal-header">
+        <h2 class="text-sm font-semibold text-on-surface">New Customer</h2>
+        <button @click="open = false" class="btn-ghost" style="padding:4px 8px; border:none">
+          <span class="msym" style="font-size:18px">close</span>
         </button>
       </div>
-      <form method="POST" action="/admin/customers/create" class="p-6 space-y-4">
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Full Name <span class="text-red-500">*</span></label>
-          <input type="text" name="name" required autofocus
-                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+      <form method="POST" action="/admin/customers/create" class="modal-body space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Contact Name</label>
+            <input name="name" required placeholder="e.g. Alex Mercer" class="input"/>
+          </div>
+          <div>
+            <label class="label">Company Name</label>
+            <input name="company_name" placeholder="e.g. Gentek Systems" class="input"/>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Email</label>
+            <input name="email" type="email" placeholder="alex@gentek.com" class="input"/>
+          </div>
+          <div>
+            <label class="label">Phone</label>
+            <input name="phone" placeholder="+95 9 xxx xxxx" class="input"/>
+          </div>
         </div>
         <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Email</label>
-          <input type="email" name="email"
-                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <label class="label">Country</label>
+          <input name="country" placeholder="e.g. Myanmar" class="input"/>
         </div>
         <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Phone</label>
-          <input type="text" name="phone"
-                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <label class="label">Notes</label>
+          <textarea name="notes" rows="2" placeholder="Optional notes…" class="input"></textarea>
         </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Notes</label>
-          <textarea name="notes" rows="2"
-                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
-        </div>
-        <div class="flex gap-3 pt-2">
-          <button type="button" @click="open = false"
-                  class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-            Cancel
-          </button>
-          <button type="submit"
-                  class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors">
-            Add Customer
-          </button>
+        <div class="flex gap-3 pt-1">
+          <button type="button" @click="open = false" class="btn-ghost flex-1">Cancel</button>
+          <button type="submit" class="btn-primary flex-1">Add Customer</button>
         </div>
       </form>
     </div>

@@ -1,6 +1,11 @@
 # Environment
 .env
 .env.local
+.env.development
+.env.production
+.env.staging
+.env.test
+.env.*.local
 
 # Python
 __pycache__/
@@ -34,6 +39,17 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Node / Next.js (frontend)
+node_modules/
+.next/
+out/
+.vercel/
+frontend/.env*
+
+# IDE
+.idea/
+.vscode/
 
 # OS
 .DS_Store

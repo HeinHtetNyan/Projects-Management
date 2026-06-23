@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Notes{% endblock %}
+{% block page_title %}Notes & Documentation{% endblock %}
+
+{% block header_actions %}
+<button @click="createOpen = true" class="btn-primary">
+  <span class="msym" style="font-size:16px">add</span>
+  New Note
+</button>
+{% endblock %}
+
+{% block content %}
+<div x-data="{ createOpen: false }">
+
+  {% if success %}
+  <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-success">
+    <span class="msym" style="font-size:18px; color:#34d399">check_circle</span>{{ success }}
+    <button @click="show = false" class="ml-auto opacity-60 hover:opacity-100"><span class="msym" style="font-size:16px">close</span></button>
+  </div>
+  {% endif %}
+
+  <!-- Filter bar -->
+  <form method="GET" action="/admin/notes" class="flex items-center gap-2 mb-4 flex-wrap">
+    <input name="q" value="{{ q or '' }}" placeholder="Search notes…" class="input flex-1 min-w-0" style="max-width:280px"/>
+    <select name="project_id" class="input" style="width:auto">
+      <option value="">All projects</option>
+      {% for p in projects %}
+      <option value="{{ p.id }}" {% if filter_project_id == p.id|string %}selected{% endif %}>{{ p.name }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn-ghost">Filter</button>
+    {% if q or filter_project_id %}<a href="/admin/notes" class="btn-ghost">Clear</a>{% endif %}
+  </form>
+
+  {% if notes %}
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for note in notes %}
+    <a href="/admin/notes/{{ note.id }}/edit" class="card p-5 block hover:border-primary transition-colors group" style="text-decoration:none">
+      <div class="flex items-start justify-between gap-2 mb-2">
+        <h3 class="font-semibold text-on-surface text-sm leading-snug flex-1">{{ note.title }}</h3>
+        <span class="msym text-outline opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" style="font-size:16px">open_in_new</span>
+      </div>
+      {% if note.project %}
+      <div class="flex items-center gap-1 mb-2">
+        <span class="msym text-outline" style="font-size:12px">folder_managed</span>
+        <span class="text-[11px] text-outline">{{ note.project.name }}</span>
+      </div>
+      {% endif %}
+      {% if note.content %}
+      <p class="text-xs text-on-surface-variant line-clamp-3 mb-3" style="white-space:pre-wrap">{{ note.content[:180] }}{% if note.content|length > 180 %}…{% endif %}</p>
+      {% endif %}
+      <div class="flex items-center justify-between">
+        <div class="flex flex-wrap gap-1">
+          {% if note.tags %}
+            {% for tag in note.tags.split(',') %}
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-mono" style="background:rgba(37,99,235,0.12); color:#b4c5ff">{{ tag.strip() }}</span>
+            {% endfor %}
+          {% endif %}
+        </div>
+        <span class="text-[11px] text-outline">{{ note.updated_at.strftime('%b %d') }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card flex flex-col items-center py-16 text-on-surface-variant text-sm">
+    <span class="msym text-outline" style="font-size:40px">description</span>
+    <p class="mt-3">No notes yet</p>
+    <p class="text-xs mt-1">Create a note to document deployment guides, API docs, infrastructure info, etc.</p>
+    <button @click="createOpen = true" class="btn-primary mt-5">
+      <span class="msym" style="font-size:16px">add</span>
+      Create First Note
+    </button>
+  </div>
+  {% endif %}
+
+  <!-- Create Note Modal -->
+  <div x-show="createOpen" x-cloak class="modal-backdrop" @keydown.escape.window="createOpen = false">
+    <div @click.outside="createOpen = false" class="modal" style="max-width:480px">
+      <div class="modal-header">
+        <h2 class="text-sm font-semibold text-on-surface">New Note</h2>
+        <button @click="createOpen = false" class="btn-ghost" style="padding:4px 8px; border:none"><span class="msym" style="font-size:18px">close</span></button>
+      </div>
+      <form method="POST" action="/admin/notes/create" class="modal-body space-y-3">
+        <div>
+          <label class="label">Title</label>
+          <input name="title" required placeholder="e.g. NexusPOS Production Deployment Guide" class="input"/>
+        </div>
+        <div>
+          <label class="label">Project</label>
+          <select name="project_id" class="input">
+            <option value="">— None (General) —</option>
+            {% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="label">Tags</label>
+          <input name="tags" placeholder="e.g. deployment, postgres, infrastructure" class="input text-xs font-mono"/>
+        </div>
+        <div class="flex gap-3 pt-1">
+          <button type="button" @click="createOpen = false" class="btn-ghost flex-1">Cancel</button>
+          <button type="submit" class="btn-primary flex-1">Create Note</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

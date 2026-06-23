@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Servers{% endblock %}
+{% block page_title %}Infrastructure Servers{% endblock %}
+
+{% block header_actions %}
+<button @click="open = true" class="btn-primary">
+  <span class="msym" style="font-size:16px">add</span>
+  Add Server
+</button>
+{% endblock %}
+
+{% block content %}
+<div x-data="{ open: false }">
+
+  {% if success %}
+  <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-success">
+    <span class="msym" style="font-size:18px; color:#34d399">check_circle</span>{{ success }}
+    <button @click="show = false" class="ml-auto opacity-60 hover:opacity-100"><span class="msym" style="font-size:16px">close</span></button>
+  </div>
+  {% endif %}
+  {% if error %}
+  <div x-data="{ show: true }" x-show="show"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-error">
+    <span class="msym" style="font-size:18px; color:#ffb4ab">error</span>{{ error }}
+    <button @click="show = false" class="ml-auto opacity-60 hover:opacity-100"><span class="msym" style="font-size:16px">close</span></button>
+  </div>
+  {% endif %}
+
+  <!-- Summary row -->
+  <div class="grid grid-cols-3 gap-4 mb-5">
+    {% set running = servers|selectattr('status', 'equalto', 'running')|list %}
+    {% set offline = servers|selectattr('status', 'equalto', 'offline')|list %}
+    {% set maintenance = servers|selectattr('status', 'equalto', 'maintenance')|list %}
+    <div class="stat-card flex items-center gap-3" style="padding:14px 20px">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(52,211,153,0.1)">
+        <span class="msym" style="font-size:16px; color:#34d399">check_circle</span>
+      </div>
+      <div>
+        <p class="text-xl font-bold text-on-surface">{{ running|length }}</p>
+        <p class="text-xs text-on-surface-variant">Running</p>
+      </div>
+    </div>
+    <div class="stat-card flex items-center gap-3" style="padding:14px 20px">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(255,255,255,0.06)">
+        <span class="msym text-outline" style="font-size:16px">cancel</span>
+      </div>
+      <div>
+        <p class="text-xl font-bold text-on-surface">{{ offline|length }}</p>
+        <p class="text-xs text-on-surface-variant">Offline</p>
+      </div>
+    </div>
+    <div class="stat-card flex items-center gap-3" style="padding:14px 20px">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(251,191,36,0.1)">
+        <span class="msym" style="font-size:16px; color:#fbbf24">build</span>
+      </div>
+      <div>
+        <p class="text-xl font-bold text-on-surface">{{ maintenance|length }}</p>
+        <p class="text-xs text-on-surface-variant">Maintenance</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b" style="background:#191c1e; border-color:rgba(255,255,255,0.06)">
+            <th class="th">Name</th>
+            <th class="th">Provider</th>
+            <th class="th">IP Address</th>
+            <th class="th">OS</th>
+            <th class="th">Specs</th>
+            <th class="th">Status</th>
+            <th class="th"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in servers %}
+          <tr class="hover:bg-[#272a2c] transition-colors border-b group" style="border-color:rgba(255,255,255,0.04)">
+            <td class="td">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(37,99,235,0.1)">
+                  <span class="msym text-primary" style="font-size:16px">dns</span>
+                </div>
+                <div>
+                  <p class="font-semibold text-on-surface">{{ s.name }}</p>
+                  {% if s.notes %}<p class="text-xs text-outline truncate max-w-[160px]">{{ s.notes }}</p>{% endif %}
+                </div>
+              </div>
+            </td>
+            <td class="td text-sm text-on-surface-variant">{{ s.provider or '—' }}</td>
+            <td class="td font-mono text-xs text-on-surface-variant">{{ s.ip_address or '—' }}</td>
+            <td class="td text-sm text-on-surface-variant">{{ s.operating_system or '—' }}</td>
+            <td class="td text-xs text-outline">
+              {% if s.cpu or s.ram or s.storage %}
+              <span class="font-mono">{{ s.cpu or '?' }} · {{ s.ram or '?' }} · {{ s.storage or '?' }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="td"><span class="badge badge-{{ s.status }}">{{ s.status }}</span></td>
+            <td class="td text-right">
+              <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <form method="POST" action="/admin/servers/{{ s.id }}/update-status" x-data class="inline">
+                  <select name="status" onchange="this.form.submit()" class="input" style="width:auto; padding:4px 8px; font-size:12px; background:#272a2c">
+                    <option value="running" {% if s.status == 'running' %}selected{% endif %}>Running</option>
+                    <option value="offline" {% if s.status == 'offline' %}selected{% endif %}>Offline</option>
+                    <option value="maintenance" {% if s.status == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                  </select>
+                </form>
+                <form method="POST" action="/admin/servers/{{ s.id }}/delete"
+                      x-data @submit.prevent="if(confirm('Delete {{ s.name|e }}?')) $el.submit()">
+                  <button type="submit" class="btn-danger" style="padding:4px 8px; font-size:12px; border:none">
+                    <span class="msym" style="font-size:14px">delete</span>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="td text-center text-on-surface-variant text-sm py-12">
+            <div class="flex flex-col items-center gap-2">
+              <span class="msym text-outline" style="font-size:32px">dns</span>
+              <p>No servers added yet</p>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add Server Modal -->
+  <div x-show="open" x-cloak class="modal-backdrop" @keydown.escape.window="open = false">
+    <div @click.outside="open = false" class="modal" style="max-width:520px">
+      <div class="modal-header">
+        <h2 class="text-sm font-semibold text-on-surface">Add Server</h2>
+        <button @click="open = false" class="btn-ghost" style="padding:4px 8px; border:none"><span class="msym" style="font-size:18px">close</span></button>
+      </div>
+      <form method="POST" action="/admin/servers/create" class="modal-body space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Server Name</label>
+            <input name="name" required placeholder="e.g. prod-web-01" class="input"/>
+          </div>
+          <div>
+            <label class="label">Provider</label>
+            <select name="provider" class="input">
+              <option value="">Select…</option>
+              <option value="ReadyIDC">ReadyIDC</option>
+              <option value="Contabo">Contabo</option>
+              <option value="Hetzner">Hetzner</option>
+              <option value="DigitalOcean">DigitalOcean</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">IP Address</label>
+            <input name="ip_address" placeholder="e.g. 192.168.1.1" class="input font-mono"/>
+          </div>
+          <div>
+            <label class="label">Operating System</label>
+            <input name="operating_system" placeholder="e.g. Ubuntu 22.04 LTS" class="input"/>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="label">CPU</label>
+            <input name="cpu" placeholder="e.g. 4 vCPU" class="input"/>
+          </div>
+          <div>
+            <label class="label">RAM</label>
+            <input name="ram" placeholder="e.g. 8 GB" class="input"/>
+          </div>
+          <div>
+            <label class="label">Storage</label>
+            <input name="storage" placeholder="e.g. 100 GB SSD" class="input"/>
+          </div>
+        </div>
+        <div>
+          <label class="label">Status</label>
+          <select name="status" class="input">
+            <option value="running">Running</option>
+            <option value="offline">Offline</option>
+            <option value="maintenance">Maintenance</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Notes</label>
+          <textarea name="notes" rows="2" placeholder="Optional notes…" class="input"></textarea>
+        </div>
+        <div class="flex gap-3 pt-1">
+          <button type="button" @click="open = false" class="btn-ghost flex-1">Cancel</button>
+          <button type="submit" class="btn-primary flex-1">Add Server</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

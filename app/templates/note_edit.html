@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}{{ note.title }}{% endblock %}
+{% block page_title %}{{ note.title }}{% endblock %}
+
+{% block header_actions %}
+<div class="flex items-center gap-2">
+  <form method="POST" action="/admin/notes/{{ note.id }}/delete"
+        x-data @submit.prevent="if(confirm('Delete this note permanently?')) $el.submit()">
+    <button type="submit" class="btn-danger" style="padding:7px 12px">
+      <span class="msym" style="font-size:16px">delete</span>
+    </button>
+  </form>
+  <button form="note-form" type="submit" class="btn-primary">
+    <span class="msym" style="font-size:16px">save</span>
+    Save
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+
+  <!-- Breadcrumb -->
+  <div class="flex items-center gap-2 mb-4 text-sm">
+    <a href="/admin/notes" class="text-on-surface-variant hover:text-primary transition-colors">Notes</a>
+    <span class="msym text-outline" style="font-size:16px">chevron_right</span>
+    <span class="text-on-surface">{{ note.title }}</span>
+  </div>
+
+  {% if success %}
+  <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-success">
+    <span class="msym" style="font-size:18px; color:#34d399">check_circle</span>{{ success }}
+  </div>
+  {% endif %}
+
+  <form id="note-form" method="POST" action="/admin/notes/{{ note.id }}/update" class="grid grid-cols-1 lg:grid-cols-4 gap-5">
+
+    <!-- Editor -->
+    <div class="lg:col-span-3">
+      <div class="card overflow-hidden">
+        <div class="px-4 py-2 border-b flex items-center gap-2" style="background:#191c1e; border-color:rgba(255,255,255,0.06)">
+          <span class="msym text-outline" style="font-size:16px">article</span>
+          <span class="text-xs font-mono text-outline uppercase tracking-wider">Content</span>
+        </div>
+        <textarea
+          name="content"
+          rows="28"
+          placeholder="Write your documentation here…
+
+You can use plain text or Markdown-style formatting:
+
+# Heading 1
+## Heading 2
+
+**Bold**, _italic_, `inline code`
+
+```
+code block
+```
+
+- List item
+- Another item"
+          class="w-full bg-transparent p-5 text-sm font-mono text-on-surface-variant focus:outline-none leading-relaxed resize-none">{{ note.content }}</textarea>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-4">
+      <div class="card p-4 space-y-3">
+        <div>
+          <label class="label">Title</label>
+          <input name="title" value="{{ note.title }}" required class="input text-sm"/>
+        </div>
+        <div>
+          <label class="label">Project</label>
+          <select name="project_id" class="input text-sm">
+            <option value="">— None —</option>
+            {% for p in projects %}
+            <option value="{{ p.id }}" {% if note.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="label">Tags</label>
+          <input name="tags" value="{{ note.tags or '' }}" placeholder="e.g. deployment, nginx" class="input text-xs font-mono"/>
+          <p class="text-[11px] text-outline mt-1">Comma-separated</p>
+        </div>
+        <div class="pt-2 border-t space-y-1.5" style="border-color:rgba(255,255,255,0.06)">
+          <div class="flex justify-between text-xs">
+            <span class="text-outline">Created by</span>
+            <span class="text-on-surface-variant">{{ note.created_by or '—' }}</span>
+          </div>
+          <div class="flex justify-between text-xs">
+            <span class="text-outline">Created</span>
+            <span class="text-on-surface-variant">{{ note.created_at.strftime('%b %d, %Y') }}</span>
+          </div>
+          <div class="flex justify-between text-xs">
+            <span class="text-outline">Last saved</span>
+            <span class="text-on-surface-variant">{{ note.updated_at.strftime('%b %d, %Y · %H:%M') }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+
+{% endblock %}

@@ -69,6 +69,7 @@ async def activate_redirect(token: str, request: Request, db: Session = Depends(
     )
 
 
+@router.post("/activate")
 @router.post("/api/v1/activate")
 async def do_activate(body: ActivateRequest, db: Session = Depends(get_db)):
     """

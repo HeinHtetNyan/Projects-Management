@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Deployments{% endblock %}
+{% block page_title %}Deployment Center{% endblock %}
+
+{% block header_actions %}
+<button @click="open = true" class="btn-primary">
+  <span class="msym" style="font-size:16px">rocket_launch</span>
+  Record Deployment
+</button>
+{% endblock %}
+
+{% block content %}
+<div x-data="{ open: false }">
+
+  {% if success %}
+  <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-success">
+    <span class="msym" style="font-size:18px; color:#34d399">check_circle</span>{{ success }}
+    <button @click="show = false" class="ml-auto opacity-60 hover:opacity-100"><span class="msym" style="font-size:16px">close</span></button>
+  </div>
+  {% endif %}
+  {% if error %}
+  <div x-data="{ show: true }" x-show="show"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-end="opacity-0"
+       class="notif-error">
+    <span class="msym" style="font-size:18px; color:#ffb4ab">error</span>{{ error }}
+    <button @click="show = false" class="ml-auto opacity-60 hover:opacity-100"><span class="msym" style="font-size:16px">close</span></button>
+  </div>
+  {% endif %}
+
+  <!-- Summary row -->
+  <div class="grid grid-cols-4 gap-4 mb-5">
+    {% set success_deps = deployments|selectattr('status', 'equalto', 'success')|list %}
+    {% set failed_deps = deployments|selectattr('status', 'equalto', 'failed')|list %}
+    {% set progress_deps = deployments|selectattr('status', 'equalto', 'in_progress')|list %}
+    <div class="stat-card flex items-center gap-3" style="padding:14px 20px">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(37,99,235,0.1)">
+        <span class="msym text-primary" style="font-size:16px">rocket_launch</span>
+      </div>
+      <div>
+        <p class="text-xl font-bold text-on-surface">{{ deployments|length }}</p>
+        <p class="text-xs text-on-surface-variant">Total</p>
+      </div>
+    </div>
+    <div class="stat-card flex items-center gap-3" style="padding:14px 20px">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(52,211,153,0.1)">
+        <span class="msym" style="font-size:16px; color:#34d399">check_circle</span>
+      </div>
+      <div>
+        <p class="text-xl font-bold text-on-surface">{{ success_deps|length }}</p>
+        <p class="text-xs text-on-surface-variant">Success</p>
+      </div>
+    </div>
+    <div class="stat-card flex items-center gap-3" style="padding:14px 20px">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(147,0,10,0.15)">
+        <span class="msym" style="font-size:16px; color:#ffb4ab">error</span>
+      </div>
+      <div>
+        <p class="text-xl font-bold text-on-surface">{{ failed_deps|length }}</p>
+        <p class="text-xs text-on-surface-variant">Failed</p>
+      </div>
+    </div>
+    <div class="stat-card flex items-center gap-3" style="padding:14px 20px">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(180,197,255,0.1)">
+        <span class="msym text-primary" style="font-size:16px">sync</span>
+      </div>
+      <div>
+        <p class="text-xl font-bold text-on-surface">{{ progress_deps|length }}</p>
+        <p class="text-xs text-on-surface-variant">In Progress</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b" style="background:#191c1e; border-color:rgba(255,255,255,0.06)">
+            <th class="th">Project</th>
+            <th class="th">Environment</th>
+            <th class="th">Version</th>
+            <th class="th">Deployed By</th>
+            <th class="th">Status</th>
+            <th class="th">Date</th>
+            <th class="th">Notes</th>
+            <th class="th"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in deployments %}
+          <tr class="hover:bg-[#272a2c] transition-colors border-b group" style="border-color:rgba(255,255,255,0.04)">
+            <td class="td font-medium text-on-surface">
+              {% if d.project %}{{ d.project.name }}{% else %}<span class="text-outline">—</span>{% endif %}
+            </td>
+            <td class="td">
+              <span class="badge badge-{{ d.environment|lower }}">{{ d.environment }}</span>
+            </td>
+            <td class="td font-mono text-xs text-on-surface-variant">{{ d.version or '—' }}</td>
+            <td class="td text-sm text-on-surface-variant">{{ d.deployed_by or '—' }}</td>
+            <td class="td"><span class="badge badge-{{ d.status }}">{{ d.status.replace('_', ' ') }}</span></td>
+            <td class="td text-xs text-outline whitespace-nowrap">{{ d.deployed_at.strftime('%b %d, %Y · %H:%M') }}</td>
+            <td class="td text-xs text-on-surface-variant max-w-[200px] truncate">
+              {{ d.release_notes[:60] + '…' if d.release_notes and d.release_notes|length > 60 else (d.release_notes or '—') }}
+            </td>
+            <td class="td text-right">
+              <form method="POST" action="/admin/deployments/{{ d.id }}/delete"
+                    x-data @submit.prevent="if(confirm('Delete this deployment record?')) $el.submit()"
+                    class="opacity-0 group-hover:opacity-100 transition-opacity inline">
+                <button type="submit" class="btn-danger" style="padding:4px 8px; font-size:12px; border:none">
+                  <span class="msym" style="font-size:14px">delete</span>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="td text-center text-on-surface-variant text-sm py-12">
+            <div class="flex flex-col items-center gap-2">
+              <span class="msym text-outline" style="font-size:32px">rocket_launch</span>
+              <p>No deployments recorded yet</p>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Record Deployment Modal -->
+  <div x-show="open" x-cloak class="modal-backdrop" @keydown.escape.window="open = false">
+    <div @click.outside="open = false" class="modal" style="max-width:520px">
+      <div class="modal-header">
+        <h2 class="text-sm font-semibold text-on-surface">Record Deployment</h2>
+        <button @click="open = false" class="btn-ghost" style="padding:4px 8px; border:none"><span class="msym" style="font-size:18px">close</span></button>
+      </div>
+      <form method="POST" action="/admin/deployments/create" class="modal-body space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Project</label>
+            <select name="project_id" class="input">
+              <option value="">— None —</option>
+              {% for p in projects %}
+              <option value="{{ p.id }}">{{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="label">Environment</label>
+            <select name="environment" class="input">
+              <option value="production">Production</option>
+              <option value="staging">Staging</option>
+              <option value="development">Development</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Version</label>
+            <input name="version" placeholder="e.g. v2.4.1" class="input font-mono"/>
+          </div>
+          <div>
+            <label class="label">Deployed By</label>
+            <input name="deployed_by" placeholder="e.g. admin" class="input"/>
+          </div>
+        </div>
+        <div>
+          <label class="label">Status</label>
+          <select name="status" class="input">
+            <option value="success">Success</option>
+            <option value="failed">Failed</option>
+            <option value="in_progress">In Progress</option>
+            <option value="rolled_back">Rolled Back</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Release Notes</label>
+          <textarea name="release_notes" rows="3" placeholder="What changed in this deployment…" class="input"></textarea>
+        </div>
+        <div class="flex gap-3 pt-1">
+          <button type="button" @click="open = false" class="btn-ghost flex-1">Cancel</button>
+          <button type="submit" class="btn-primary flex-1">Record Deployment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
